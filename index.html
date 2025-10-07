@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地球の鼓動 - 歌唱ガイド</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; background-color: #f7fafc; }
+        .part-button.active-SOPRANO { background-color: #f87171; color: white; transform: scale(1.05); }
+        .part-button.active-ALTO { background-color: #fbbf24; color: white; transform: scale(1.05); }
+        .part-button.active-TENOR { background-color: #34d399; color: white; transform: scale(1.05); }
+        .lyric-word { display: inline-block; transition: color 0.1s ease-in, transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); color: #9ca3af; }
+        .lyric-word.highlight { color: #111827; transform: translateY(-1px) scale(1.03); font-weight: 800; }
+        .lyric-word.rest { color: #d1d5db; font-style: italic; }
+        #play-pause-btn svg { width: 2rem; height: 2rem; transition: transform 0.1s ease-in-out; }
+        #play-pause-btn:active svg { transform: scale(0.9); }
+    </style>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { 'primary-red': '#f87171', 'primary-yellow': '#fbbf24', 'primary-green': '#34d399' } } } }
+    </script>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col">
+
+    <header class="text-center mb-6">
+        <h1 class="text-3xl font-extrabold text-gray-800">「地球の鼓動」歌唱ガイド (三部合唱版)</h1>
+        <p class="text-gray-500 text-sm mt-1">音源に合わせて歌詞が自動でハイライトされます</p>
+    </header>
+
+    <div class="max-w-4xl mx-auto w-full flex-grow">
+        <!-- コントロールエリア -->
+        <div class="bg-white p-4 rounded-xl shadow-lg mb-6 border border-gray-200">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-bold text-gray-700">🎹 伴奏コントロール</h3>
+                <button id="sync-toggle-btn" class="px-3 py-1 text-sm font-semibold rounded-full bg-green-500 text-white transition-colors">同期 ON</button>
+            </div>
+            <div class="mb-4">
+                <label for="audio-source-select" class="block text-sm font-medium text-gray-700 mb-1">🎵 音源を選択</label>
+                <select id="audio-source-select" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm">
+                    <option value="./MUSIC/1.mp3" selected>全体合唱 (ゼンパー)</option>
+                    <option value="./MUSIC/2.mp3">伴奏のみ</option>
+                    <option value="./MUSIC/3.mp3">ソプラノパート</option>
+                    <option value="./MUSIC/4.mp3">アルトパート</option>
+                    <option value="./MUSIC/5.mp3">テノールパート</option>
+                </select>
+            </div>
+            <audio id="chorus-audio" src="./MUSIC/1.mp3" preload="metadata"></audio>
+            <div class="flex items-center space-x-4">
+                <button id="play-pause-btn" class="p-2 bg-gray-500 hover:bg-gray-600 rounded-full text-white">
+                    <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
+                    <svg id="pause-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg>
+                </button>
+                <div class="flex-grow">
+                    <input type="range" id="audio-slider" min="0" max="182" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span id="current-time">0:00</span>
+                        <span id="duration">0:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-center space-x-2 md:space-x-4 mb-6 p-3 bg-white rounded-xl shadow-lg">
+            <button class="part-button px-4 py-2 rounded-full font-semibold text-sm transition-transform" data-part="SOPRANO">ソプラノ</button>
+            <button class="part-button px-4 py-2 rounded-full font-semibold text-sm transition-transform" data-part="ALTO">アルト</button>
+            <button class="part-button px-4 py-2 rounded-full font-semibold text-sm transition-transform" data-part="TENOR">テナー</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-2xl">
+            <div class="mb-4">
+                <div id="progress-text" class="text-xs text-gray-600 mb-1 text-right">0/15</div>
+                <div class="w-full bg-gray-200 rounded-full h-2"><div id="progress-bar" class="h-2 rounded-full transition-all duration-300" style="width: 0%"></div></div>
+            </div>
+            
+            <div class="text-center mb-6 min-h-[100px] flex flex-col justify-center">
+                <p id="measure-number" class="text-lg font-bold text-gray-500 mb-2">小節: -</p>
+                <h2 id="current-lyrics" class="text-4xl font-extrabold text-gray-900 leading-relaxed tracking-wide">パートを選択してください</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div id="dynamics-card" class="p-4 rounded-xl text-center border-2">
+                    <p class="text-sm font-semibold mb-1">つよさ</p>
+                    <p id="current-dynamics-symbol" class="font-black transition-transform duration-300">-</p>
+                    <p id="current-dynamics-meaning" class="text-lg font-medium">-</p>
+                </div>
+                <div class="p-4 rounded-xl text-center border">
+                    <p class="text-sm font-semibold mb-1">はやさ・表現</p>
+                    <p id="current-tempo-symbol" class="text-3xl font-bold">-</p>
+                    <p id="current-tempo-meaning" class="text-lg font-medium">-</p>
+                </div>
+            </div>
+
+            <div id="instruction-area" class="mt-8 p-4 rounded-xl border-2 border-dashed min-h-[100px] flex items-center justify-center">
+                <p id="part-instruction" class="text-xl font-medium text-center">-</p>
+            </div>
+
+            <div class="mt-8 flex justify-between space-x-4">
+                <button id="prev-btn" class="flex-1 px-6 py-3 bg-gray-300 text-gray-800 font-bold rounded-xl hover:bg-gray-400 transition disabled:opacity-50">&larr; 前へ</button>
+                <button id="next-btn" class="flex-1 px-6 py-3 text-white font-bold rounded-xl transition disabled:opacity-50">次へ &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-gray-400">&copy; 2025 Interactive Chorus Guide Prototype</footer>
+
+<script>
+    // =================================================================
+    // 1. データ構造 (パート別歌詞・時間軸 完全修正版)
+    // =================================================================
+    const MUSIC_GLOSSARY = {
+        'p': { meaning: '弱く', size: 'text-6xl' }, 'mp': { meaning: 'やや弱く', size: 'text-7xl' },
+        'mf': { meaning: 'やや強く', size: 'text-8xl' }, 'f': { meaning: '強く', size: 'text-9xl' },
+        'fff': { meaning: 'きわめて強く', size: 'text-9xl font-black' }, 'cresc.': { meaning: 'だんだん強く' },
+        'dim.': { meaning: 'だんだん弱く' }, 'rit.': { meaning: 'だんだんゆっくり' },
+        'rall.': { meaning: 'だんだんゆっくり' }, 'accel.': { meaning: 'だんだん速く' }, 'Maestoso': { meaning: '荘厳に' },
+        'Tempo I': { meaning: 'もとの速さで' }, 'Un poco mosso': { meaning: '少し動きをつけて' },
+        'rit. poco': { meaning: '少しだけゆっくり' }, 'Meno mosso': { meaning: '今までより遅く' },
+        'A Tempo': { meaning: 'もとの速さで' }, 'Andante': { meaning: '歩くような速さで' },
+        'Lento': { meaning: 'ゆるやかに' }, 'Espressivo': { meaning: '表情豊かに' }
+    };
+    
+    const CHORUS_DATA = [
+        {
+            measure: '1-4', dynamics: 'p', tempo: 'Tempo I',
+            lyrics: {
+                SOPRANO: [{ text: "聞こえてくるだろ", time: 23.2 }, { text: "地球の鼓動が", time: 27.5 }],
+                ALTO:    [{ text: "聞こえてくるだろ", time: 23.2 }, { text: "地球の鼓動が", time: 27.5 }],
+                TENOR:   [{ text: "聞こえてくるだろ", time: 23.2 }, { text: "地球の鼓動が", time: 27.5 }]
+            },
+            SOPRANO: "問いかけるように、**優しく歌い始め**、「鼓動が」で少しだけ響きを膨らませる。",
+            ALTO: "リズムを正確に、しかし硬くならないように。メロディを支える透明な響きを意識。",
+            TENOR: "「鼓動が」の**高音部を丁寧に**扱い、強弱記号通りに徐々に響きを前に出す。",
+        },
+        {
+            measure: '5-8', dynamics: 'mf', tempo: 'Un poco mosso',
+            lyrics: {
+                SOPRANO: [{ text: "寄せては返す波", time: 32.8 }, { text: "はるかなる時を越え", time: 37.0 }],
+                ALTO:    [{ text: "寄せては返す波", time: 32.8 }, { text: "はるかなる時を越え", time: 37.0 }],
+                TENOR:   [{ text: "寄せては返す波", time: 32.8 }, { text: "はるかなる時を越え", time: 37.0 }]
+            },
+            SOPRANO: "波の動きのようにフレーズに抑揚をつける。**「はるかなる」で強く**、次に向けて盛り上げる。",
+            ALTO: "音の跳躍（ジャンプ）を丁寧に。波のイメージに合わせて、息の流れを止めずに。",
+            TENOR: "メロディとハーモニーの両方を担当。**リズムを意識**し、前のめりにならないよう注意。",
+        },
+        {
+            measure: '9-12', dynamics: 'mf', tempo: 'Tempo I',
+            lyrics: {
+                SOPRANO: [{ text: "青い海原に", time: 42.5 }, { text: "白い帆をあげて", time: 47.1 }],
+                ALTO:    [{ text: "青い海原に", time: 42.5 }, { text: "白い帆をあげて", time: 47.1 }],
+                TENOR:   [{ text: "青い海原に", time: 42.5 }, { text: "白い帆をあげて", time: 47.1 }]
+            },
+            SOPRANO: "開放感のある響き。子音を鋭く出しすぎず、**母音の響きを保つ**。",
+            ALTO: "和声パートとして響きを広げる。**「青い」の「あ」の母音を深く**。",
+            TENOR: "全体を支える中低音。フレーズの後半に向かって少し前進する意識を持つ。",
+        },
+        {
+            measure: '13-16', dynamics: 'p', tempo: 'rit. poco',
+            lyrics: {
+                SOPRANO: [{ text: "風を感じたとき", time: 51.8 }, { text: "やさしさに抱かれる", time: 56.1 }],
+                ALTO:    [{ text: "風を感じたとき", time: 51.8 }, { text: "やさしさに抱かれる", time: 56.1 }],
+                TENOR:   [{ text: "風を感じたとき", time: 51.8 }, { text: "やさしさに抱かれる", time: 56.1 }]
+            },
+            SOPRANO: "「やさしさに」でデクレッシェンド。**風が通り過ぎるように**柔らかく音量を絞る。",
+            ALTO: "「抱かれる」の「れ」を丁寧に伸ばし、**最後はそっと息を逃す**ように音を切る。",
+            TENOR: "ハーモニーの変化を感じながら、**全体を包み込むような温かい声**を意識。",
+        },
+        {
+            measure: '17-20', dynamics: 'cresc.', tempo: 'Meno mosso',
+            lyrics: {
+                SOPRANO: [{ text: "空を焦がし", time: 62.1 }, { text: "昇る太陽", time: 66.3 }],
+                ALTO:    [{ text: "空を焦がし", time: 62.1 }, { text: "昇る太陽", time: 66.3 }],
+                TENOR:   [{ text: "空を焦がし", time: 62.1 }, { text: "昇る太陽", time: 66.3 }]
+            },
+            SOPRANO: "**ドラマチックに**。太陽がゆっくり昇るイメージで、焦らず響きを重ねる。",
+            ALTO: "低音域だが声を潰さず、**深い響きで強弱を調整**。「太陽」で力をためる。",
+            TENOR: "静かだが強い意志を持つ。**クレッシェンドの起点**となり、エネルギーを蓄積。",
+        },
+        {
+            measure: '21-24', dynamics: 'f', tempo: 'A Tempo',
+            lyrics: {
+                SOPRANO: [{ text: "憧れよりも", time: 71.0 }, { text: "もっと遠くに見える", time: 74.0 }],
+                ALTO:    [{ text: "憧れよりも", time: 71.0 }, { text: "もっと遠くに見える", time: 74.0 }],
+                TENOR:   [{ text: "憧れよりも", time: 71.0 }, { text: "もっと遠くに見える", time: 74.0 }]
+            },
+            SOPRANO: "憧れを追いかける強い気持ち。**明るく、突き抜けるような高音**。強弱を維持。",
+            ALTO: "「遠く」の響きを大切に。**響きを後ろに引かない**よう、常に前へ。",
+            TENOR: "高揚感を保ちつつ、高音の響きを邪魔しないよう、**支える力強い響き**を。",
+        },
+        {
+            measure: '25-28', dynamics: 'dim.', tempo: 'Tempo I',
+            lyrics: {
+                SOPRANO: [{ text: "夢の破片(かけら)", time: 78.1 }, { text: "探しに行く", time: 80.5 }, { text: "朝が来たよ", time: 83.2 }],
+                ALTO:    [{ text: "夢の破片(かけら)", time: 78.1 }, { text: "探しに行く", time: 80.5 }, { text: "朝が来たよ", time: 83.2 }],
+                TENOR:   [{ text: "夢の破片(かけら)", time: 78.1 }, { text: "探しに行く", time: 80.5 }, { text: "朝が来たよ", time: 83.2 }]
+            },
+            SOPRANO: "「朝が来たよ」の「よ」を**長く伸ばし**、デクレッシェンドしながら次のセクションへ繋ぐ。",
+            ALTO: "**言葉の輪郭を明瞭に**。前のめりにならず、テンポを正確に。ソプラノとの響きを調整。",
+            TENOR: "**強さの中にも優しさ**を表現する。「朝が来たよ」は少しずつ音を絞り始める。",
+        },
+        {
+            measure: '29-32', dynamics: 'mp', tempo: 'Andante',
+            lyrics: {
+                SOPRANO: [{ text: "春には春の", time: 89.1 }, { text: "花が咲きほこり", time: 93.0 }],
+                ALTO:    [{ text: "春には春の", time: 89.1 }, { text: "花が咲きほこり", time: 93.0 }],
+                TENOR:   [{ text: "春には春の", time: 89.1 }, { text: "花が咲きほこり", time: 93.0 }]
+            },
+            SOPRANO: "穏やかな流れ。**「はる」を優しく**発音し、響きは柔らかく、丸く。",
+            ALTO: "ハーモニーを豊かに彩る。**「ほこり」の終端をきれいに切る**。",
+            TENOR: "**メロディラインを丁寧に**歌い、和声の流れを正確に表現。",
+        },
+        {
+            measure: '33-36', dynamics: 'f', tempo: 'A Tempo',
+            lyrics: {
+                SOPRANO: [{ text: "夏には夏の", time: 98.2 }, { text: "鳥が舞うよ", time: 102.0 }, { text: "大空高く", time: 104.5 }],
+                ALTO:    [{ text: "夏には夏の", time: 98.2 }, { text: "鳥が舞うよ", time: 102.0 }, { text: "大空高く", time: 104.5 }],
+                TENOR:   [{ text: "夏には夏の", time: 98.2 }, { text: "鳥が舞うよ", time: 102.0 }, { text: "大空高く", time: 104.5 }]
+            },
+            SOPRANO: "「大空高く」で**音を解放し、輝かせる**。クレッシェンドとリタルダンドに合わせる。",
+            ALTO: "「舞うよ」の高音を柔らかく。ソプラノと共に**開放感を演出**。",
+            TENOR: "ハーモニーの変化が美しい部分。**響きを立体的に**作る意識。",
+        },
+        {
+            measure: '37-40', dynamics: 'p', tempo: 'Lento',
+            lyrics: {
+                SOPRANO: [{ text: "もしもきみが", time: 108.0 }, { text: "いつの日にか", time: 111.0 }, { text: "ひとりぼっちだと", time: 114.5 }],
+                ALTO:    [{ text: "もしもきみが", time: 108.0 }, { text: "いつの日にか", time: 111.0 }, { text: "ひとりぼっちだと", time: 114.5 }],
+                TENOR:   [{ text: "もしもきみが", time: 108.0 }, { text: "いつの日にか", time: 111.0 }, { text: "ひとりぼっちだと", time: 114.5 }]
+            },
+            SOPRANO: "**語りかけるように**、弱い音量で丁寧に歌う。一言一言に心を込める。",
+            ALTO: "メロディを支える。**寂しさや不安**を表現するため、響きを抑える。",
+            TENOR: "**孤独感**を表現。優しい音色だが、不安定にならないよう芯を保つ。",
+        },
+        {
+            measure: '41-44', dynamics: 'cresc.', tempo: 'Espressivo',
+            lyrics: {
+                SOPRANO: [{ text: "めげそうな夜があったとしても", time: 118.5 }],
+                ALTO:    [{ text: "めげそうな夜があったとしても", time: 118.5 }],
+                TENOR:   [{ text: "めげそうな夜があったとしても", time: 118.5 }]
+            },
+            SOPRANO: "優しく包み込む温かさ。**「夜」の伸ばす音を大切に**。わずかにクレッシェンド。",
+            ALTO: "ソプラノと**寄り添う**ような響き。フレーズの最後はそっと収束。",
+            TENOR: "不安定な和声感。**感情を込めて**歌い、次の季節の描写へ繋ぐ。",
+        },
+        {
+            measure: '45-48', dynamics: 'mp', tempo: 'Tempo I',
+            lyrics: {
+                SOPRANO: [{ text: "秋には秋の", time: 127.8 }, { text: "星が瞬いて", time: 131.8 }],
+                ALTO:    [{ text: "秋には秋の", time: 127.8 }, { text: "星が瞬いて", time: 131.8 }],
+                TENOR:   [{ text: "秋には秋の", time: 127.8 }, { text: "星が瞬いて", time: 131.8 }]
+            },
+            SOPRANO: "**星の輝き**をイメージ。一つ一つの音を**クリアに発音**し、響きを保つ。",
+            ALTO: "穏やかで安定した響き。**拍の頭を丁寧に**扱う。",
+            TENOR: "温かく柔らかい音色。**低音パートとの調和**を意識。",
+        },
+        {
+            measure: '49-52', dynamics: 'dim.', tempo: 'rall.',
+            lyrics: {
+                SOPRANO: [{ text: "冬には冬の", time: 137.2 }, { text: "雪が頬で溶けていくよに", time: 141.0 }],
+                ALTO:    [{ text: "冬には冬の", time: 137.2 }, { text: "雪が頬で溶けていくよに", time: 141.0 }],
+                TENOR:   [{ text: "冬には冬の", time: 137.2 }, { text: "雪が頬で溶けていくよに", time: 141.0 }]
+            },
+             SOPRANO: "**「溶けていく」の様子を音量とテンポで表現**。非常に繊細に音を絞る。",
+            ALTO: "ソプラノと共に叙情的に。**デクレッシェンドが鍵**。息のスピードを一定に保つ。",
+            TENOR: "ハーモニーの緊張感を維持しつつ、**優しく解放**。「いくよに」はしっかり伸ばす。",
+        },
+        {
+            measure: '53-56', dynamics: 'cresc.', tempo: 'accel.',
+            lyrics: {
+                SOPRANO: [{ text: "いつだって", time: 148.8 }, { text: "そばにいるよ", time: 151.2 }],
+                ALTO:    [{ text: "いつだって", time: 148.8 }, { text: "そばにいるよ", time: 151.2 }],
+                TENOR:   [{ text: "いつだって", time: 148.8 }, { text: "そばにいるよ", time: 151.2 }]
+            },
+            SOPRANO: "強い決意を込めた**温かい言葉**。クレッシェンドでクライマックスへ向かうエネルギーを出す。",
+            ALTO: "ソプラノの響きを、**下からしっかりと支える**。リズムの加速感を意識。",
+            TENOR: "「いるよ」の**子音を立たせ**、説得力のある声。最大の盛り上がりに備える。",
+        },
+        {
+            measure: '57-62', dynamics: 'fff', tempo: 'Maestoso',
+            lyrics: {
+                SOPRANO: [{ text: "そっと包み込む", time: 154.5 }, { text: "地球の", time: 158.5 }, { text: "鼓動が聞こえてくるだろう", time: 161.0 }],
+                ALTO:    [{ text: "そっと包み込む", time: 154.5 }, { text: "地球の", time: 158.5 }, { text: "鼓動が聞こえてくるだろう", time: 161.0 }],
+                TENOR:   [{ text: "そっと包み込む", time: 154.5 }, { text: "地球の", time: 158.5 }, { text: "鼓動が聞こえてくるだろう", time: 161.0 }]
+            },
+            SOPRANO: "曲の**クライマックス**。最大の音量で、**頭上の響き**を意識。最後の「う」を長く伸ばす。",
+            ALTO: "和声の中で最も**エモーショナルな響き**を。音量に負けず、音程を保持。",
+            TENOR: "**テノールが持つ最大の力**と、美しい音色を両立。和声の厚みを出す。",
+        },
+    ];
+    
+    // 全音源(約3分2秒)に合わせた同期ポイント
+    const SYNC_POINTS = [
+        { step: 0, time: 23.0 }, { step: 1, time: 32.5 }, { step: 2, time: 42.0 }, 
+        { step: 3, time: 51.5 }, { step: 4, time: 62.0 }, { step: 5, time: 70.8 }, 
+        { step: 6, time: 77.9 }, { step: 7, time: 88.9 }, { step: 8, time: 98.0 }, 
+        { step: 9, time: 107.8 }, { step: 10, time: 118.3 }, { step: 11, time: 127.6 }, 
+        { step: 12, time: 137.0 }, { step: 13, time: 148.6 }, { step: 14, time: 154.3 }, 
+        { step: 15, time: 300.0 } // End
+    ];
+
+    // =================================================================
+    // グローバル変数とDOM要素
+    // =================================================================
+    let currentStep = 0;
+    let selectedPart = 'SOPRANO';
+    const totalSteps = CHORUS_DATA.length;
+    let isSyncing = true;
+    let lastHighlightedIndex = -1;
+
+    const getEl = id => document.getElementById(id);
+    const audioElement = getEl('chorus-audio');
+    const partButtons = document.querySelectorAll('.part-button');
+    const currentLyrics = getEl('current-lyrics');
+    // ... 他のDOM要素 ...
+    
+    // =================================================================
+    // 主要なロジック
+    // =================================================================
+    function updateDisplay(isStepChange = false) {
+        if (currentStep < 0 || currentStep >= totalSteps) return;
+
+        const data = CHORUS_DATA[currentStep];
+        const partColorMap = { SOPRANO: 'primary-red', ALTO: 'primary-yellow', TENOR: 'primary-green' };
+        const activeColor = partColorMap[selectedPart];
+
+        if (isStepChange) {
+            const partLyrics = data.lyrics[selectedPart];
+            currentLyrics.innerHTML = partLyrics.map((word, index) => {
+                const isRest = word.text.includes('(Rest)');
+                return `<span class="lyric-word ${isRest ? 'rest' : ''}" data-index="${index}">${word.text}</span>`;
+            }).join(' ');
+            lastHighlightedIndex = -1;
+        }
+
+        updateIndicators(data, activeColor);
+        
+        getEl('part-instruction').innerHTML = `<span class="font-extrabold text-${activeColor}">${selectedPart}</span>: ${data[selectedPart]}`;
+        getEl('instruction-area').className = `mt-8 p-4 rounded-xl border-2 border-dashed border-${activeColor}-400 bg-${activeColor}-50 min-h-[100px] flex items-center justify-center`;
+
+        getEl('measure-number').textContent = `小節: ${data.measure}`;
+        getEl('progress-bar').style.width = `${((currentStep + 1) / totalSteps) * 100}%`;
+        getEl('progress-bar').className = `h-2 rounded-full bg-${activeColor} transition-all duration-300`;
+        getEl('progress-text').textContent = `${currentStep + 1} / ${totalSteps}`;
+        
+        getEl('prev-btn').disabled = isSyncing ? true : currentStep === 0;
+        getEl('next-btn').disabled = isSyncing ? true : currentStep === totalSteps - 1;
+        getEl('next-btn').className = `flex-1 px-6 py-3 text-white font-bold rounded-xl transition disabled:opacity-50 bg-${activeColor} hover:bg-${activeColor}-600`;
+    }
+
+    function updateIndicators(data, color) {
+        const dynamicsData = MUSIC_GLOSSARY[data.dynamics] || {};
+        getEl('current-dynamics-symbol').textContent = data.dynamics;
+        getEl('current-dynamics-meaning').textContent = dynamicsData.meaning || '-';
+        getEl('current-dynamics-symbol').className = `font-black transition-transform duration-300 ${dynamicsData.size || 'text-6xl'}`;
+        getEl('dynamics-card').className = `p-4 rounded-xl text-center border-2 border-${color}-400 bg-${color}-50`;
+        getEl('current-dynamics-symbol').style.transform = `scale(${1 + (Object.keys(MUSIC_GLOSSARY).indexOf(data.dynamics) / 20)})`;
+        
+        const tempoData = MUSIC_GLOSSARY[data.tempo] || { meaning: data.tempo };
+        getEl('current-tempo-symbol').textContent = data.tempo;
+        getEl('current-tempo-meaning').textContent = tempoData.meaning;
+    }
+
+    function handleTimeUpdate() {
+        const currentTime = audioElement.currentTime;
+        getEl('audio-slider').value = currentTime;
+        getEl('current-time').textContent = formatTime(currentTime);
+
+        if (isSyncing) {
+            const nextSyncPoint = SYNC_POINTS.find(p => p.step === currentStep + 1);
+            if (nextSyncPoint && currentTime >= nextSyncPoint.time) {
+                currentStep++;
+                updateDisplay(true);
+            }
+        }
+
+        const partLyrics = CHORUS_DATA[currentStep].lyrics[selectedPart];
+        const lyricSpans = currentLyrics.querySelectorAll('.lyric-word');
+        let highlightIndex = -1;
+        for (let i = 0; i < partLyrics.length; i++) {
+            if (currentTime >= partLyrics[i].time) {
+                highlightIndex = i;
+            } else {
+                break;
+            }
+        }
+        if (highlightIndex !== lastHighlightedIndex) {
+            lyricSpans.forEach((span, index) => span.classList.toggle('highlight', index <= highlightIndex));
+            lastHighlightedIndex = highlightIndex;
+        }
+    }
+    
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return '0:00';
+        const minutes = Math.floor(seconds / 60);
+        return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+    }
+
+    function setupEventListeners() {
+        partButtons.forEach(button => button.addEventListener('click', e => {
+            selectedPart = e.currentTarget.getAttribute('data-part');
+            partButtons.forEach(btn => btn.classList.remove('active-SOPRANO', 'active-ALTO', 'active-TENOR'));
+            e.currentTarget.classList.add(`active-${selectedPart}`);
+            updateDisplay(true);
+        }));
+
+        const navigate = (direction) => {
+            if (!isSyncing) {
+                currentStep = Math.max(0, Math.min(totalSteps - 1, currentStep + direction));
+                updateDisplay(true);
+                audioElement.currentTime = SYNC_POINTS[currentStep].time;
+            }
+        };
+        getEl('prev-btn').addEventListener('click', () => navigate(-1));
+        getEl('next-btn').addEventListener('click', () => navigate(1));
+
+        getEl('sync-toggle-btn').addEventListener('click', e => {
+            isSyncing = !isSyncing;
+            e.target.textContent = `同期 ${isSyncing ? 'ON' : 'OFF'}`;
+            e.target.classList.toggle('bg-green-500', isSyncing);
+            e.target.classList.toggle('bg-gray-500', !isSyncing);
+            updateDisplay(true); // ボタンの状態を更新
+        });
+
+        getEl('play-pause-btn').addEventListener('click', () => {
+            if (audioElement.paused) audioElement.play();
+            else audioElement.pause();
+        });
+        
+        getEl('audio-source-select').addEventListener('change', e => {
+            const wasPlaying = !audioElement.paused;
+            audioElement.src = e.target.value;
+            audioElement.load();
+            if (wasPlaying) {
+                audioElement.play();
+            }
+        });
+
+        audioElement.addEventListener('loadedmetadata', () => {
+            const duration = audioElement.duration;
+            getEl('audio-slider').max = duration;
+            getEl('duration').textContent = formatTime(duration);
+        });
+        audioElement.addEventListener('timeupdate', handleTimeUpdate);
+        audioElement.addEventListener('play', () => { getEl('play-icon').classList.add('hidden'); getEl('pause-icon').classList.remove('hidden'); });
+        audioElement.addEventListener('pause', () => { getEl('pause-icon').classList.add('hidden'); getEl('play-icon').classList.remove('hidden'); });
+        audioElement.addEventListener('ended', () => { audioElement.currentTime = 0; currentStep = 0; updateDisplay(true); audioElement.pause(); });
+        
+        getEl('audio-slider').addEventListener('input', () => {
+            const newTime = parseFloat(getEl('audio-slider').value);
+            audioElement.currentTime = newTime;
+
+            let closestStep = 0;
+            for (let i = SYNC_POINTS.length - 1; i >= 0; i--) {
+                if (newTime >= SYNC_POINTS[i].time) {
+                    closestStep = i;
+                    break;
+                }
+            }
+            if (currentStep !== closestStep) {
+                currentStep = closestStep;
+                updateDisplay(true);
+            }
+        });
+    }
+
+    window.onload = () => {
+        partButtons[0].classList.add('active-SOPRANO');
+        updateDisplay(true);
+        setupEventListeners();
+        getEl('prev-btn').disabled = true;
+        getEl('next-btn').disabled = true;
+    };
+</script>
+
+</body>
+</html>
